@@ -1,0 +1,26 @@
+version: 2
+
+models:
+  - name: dim_date
+    description: Calendar dates through the build date, plus a Not closed row.
+    columns:
+      - name: date_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_time
+    description: Every minute of the day, plus an Unknown row.
+    columns:
+      - name: time_key
+        data_tests:
+          - unique
+          - not_null
+
+  - name: dim_crash_severity
+    description: Five crash severity categories with fixed integer keys.
+    columns:
+      - name: severity_key
+        data_tests:
+          - unique
+          - not_null
