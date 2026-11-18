@@ -43,6 +43,7 @@ cleaned AS (
         COALESCE(NULLIF(TRIM(descriptor), ''), 'Not specified') AS descriptor,
         NULLIF(TRIM(descriptor_2), '') AS descriptor_2,
         COALESCE(INITCAP(NULLIF(TRIM(status), '')), 'Unknown') AS status,
+        1 AS request_count,
 
         -- Metadata
         created_date AS raw_created_timestamp,
@@ -55,33 +56,6 @@ cleaned AS (
       AND UPPER(TRIM(complaint_type)) IN ('STREET LIGHT CONDITION', 'TRAFFIC SIGNAL CONDITION')
     -- Deduplicate
     QUALIFY ROW_NUMBER() OVER (PARTITION BY source.unique_key ORDER BY source.created_date) = 1
-),
-
-final AS (
-    SELECT
-        unique_key,
-        raw_unique_key,
-        created_datetime,
-        closed_datetime,
-        DATE(created_datetime) AS created_date,
-        DATE(closed_datetime) AS closed_date,
-        -- Keys for the dimensions (open requests point to Not closed, date_key 0)
-        CAST(FORMAT_DATE('%Y%m%d', DATE(created_datetime)) AS INT64) AS created_date_key,
-        EXTRACT(HOUR FROM created_datetime) * 100 + EXTRACT(MINUTE FROM created_datetime) AS created_time_key,
-        COALESCE(CAST(FORMAT_DATE('%Y%m%d', DATE(closed_datetime)) AS INT64), 0) AS closed_date_key,
-        borough,
-        zip_code,
-        complaint_type,
-        descriptor,
-        descriptor_2,
-        status,
-        status = 'Closed' AS is_closed,
-        1 AS request_count,
-        CAST(ROUND(DATETIME_DIFF(closed_datetime, created_datetime, SECOND) / 3600.0, 2) AS NUMERIC) AS resolution_hours,
-        raw_created_timestamp,
-        raw_closed_timestamp,
-        loaded_at_utc
-    FROM cleaned
 )
 
-SELECT * FROM final
+SELECT * FROM cleaned

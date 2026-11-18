@@ -1,4 +1,4 @@
--- Clean and standardize NYC Motor Vehicle Collisions data
+-- Staging for NYC Motor Vehicle Collisions data
 -- One row per crash (collision_id), Jan 1, 2021 to Jun 30, 2026
 WITH source AS (
     SELECT * FROM {{ source('group16_raw', 'source_nyc_mv_collisions') }}
@@ -54,12 +54,13 @@ cleaned AS (
 
         -- Severity rule from Milestone 3, applied in this order
         CASE
-            WHEN number_of_persons_killed >= 1 THEN 4 -- Fatal
-            WHEN number_of_persons_killed IS NULL OR number_of_persons_injured IS NULL THEN 0 -- Unknown
-            WHEN number_of_persons_injured >= 2 THEN 3 -- Multiple Injuries
-            WHEN number_of_persons_injured = 1 THEN 2 -- Single Injury
-            ELSE 1 -- No Injury
+            WHEN number_of_persons_killed >= 1 THEN 4                                          -- Fatal
+            WHEN number_of_persons_killed IS NULL OR number_of_persons_injured IS NULL THEN 0  -- Unknown
+            WHEN number_of_persons_injured >= 2 THEN 3                                         -- Multiple Injuries
+            WHEN number_of_persons_injured = 1 THEN 2                                          -- Single Injury
+            ELSE 1                                                                             -- No Injury
         END AS severity_key,
+        1 AS collision_count,
 
         -- Metadata
         crash_date AS raw_crash_timestamp,
@@ -70,32 +71,6 @@ cleaned AS (
       AND DATE(crash_date) < '2026-07-01'
     -- Deduplicate (the Milestone 3 load added some chunks twice)
     QUALIFY ROW_NUMBER() OVER (PARTITION BY source.collision_id ORDER BY source.crash_date) = 1
-),
-
-final AS (
-    SELECT
-        collision_id,
-        crash_date,
-        crash_time,
-        -- Keys for the dimensions
-        CAST(FORMAT_DATE('%Y%m%d', crash_date) AS INT64) AS crash_date_key,
-        COALESCE(EXTRACT(HOUR FROM crash_time) * 100 + EXTRACT(MINUTE FROM crash_time), -1) AS crash_time_key,
-        borough,
-        zip_code,
-        severity_key,
-        severity_key IN (2, 3, 4) AS is_injury_or_fatal,
-        1 AS collision_count,
-        number_of_persons_injured,
-        number_of_persons_killed,
-        number_of_pedestrians_injured,
-        number_of_pedestrians_killed,
-        number_of_cyclist_injured,
-        number_of_cyclist_killed,
-        number_of_motorist_injured,
-        number_of_motorist_killed,
-        raw_crash_timestamp,
-        loaded_at_utc
-    FROM cleaned
 )
 
-SELECT * FROM final
+SELECT * FROM cleaned
