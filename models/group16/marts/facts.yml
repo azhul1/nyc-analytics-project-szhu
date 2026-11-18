@@ -1,0 +1,121 @@
+version: 2
+
+models:
+  - name: fact_collision
+    description: One row per NYC motor vehicle crash between January 1, 2021 and June 30, 2026, identified by collision_id.
+    columns:
+      - name: collision_id
+        data_tests:
+          - unique
+          - not_null
+      - name: crash_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: crash_time_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_time')
+              field: time_key
+      - name: location_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: location_key
+      - name: severity_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_crash_severity')
+              field: severity_key
+      - name: collision_count
+        data_tests:
+          - not_null
+      - name: number_of_persons_injured
+        description: Null means not recorded.
+      - name: number_of_persons_killed
+        description: Null means not recorded.
+      - name: number_of_pedestrians_injured
+        data_tests:
+          - not_null
+      - name: number_of_pedestrians_killed
+        data_tests:
+          - not_null
+      - name: number_of_cyclist_injured
+        data_tests:
+          - not_null
+      - name: number_of_cyclist_killed
+        data_tests:
+          - not_null
+      - name: number_of_motorist_injured
+        data_tests:
+          - not_null
+      - name: number_of_motorist_killed
+        data_tests:
+          - not_null
+      - name: loaded_at_utc
+        description: Time the row was loaded into the warehouse by dbt (UTC).
+        data_tests:
+          - not_null
+
+  - name: fact_311_request
+    description: One row per street light or traffic signal 311 request created between January 1, 2021 and June 30, 2026, identified by unique_key.
+    columns:
+      - name: unique_key
+        data_tests:
+          - unique
+          - not_null
+      - name: created_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: created_time_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_time')
+              field: time_key
+      - name: closed_date_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_date')
+              field: date_key
+      - name: location_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_location')
+              field: location_key
+      - name: complaint_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_complaint')
+              field: complaint_key
+      - name: status_key
+        data_tests:
+          - not_null
+          - relationships:
+              to: ref('dim_request_status')
+              field: status_key
+      - name: request_count
+        data_tests:
+          - not_null
+      - name: created_datetime
+        data_tests:
+          - not_null
+      - name: closed_datetime
+        description: Null when the request is not Closed.
+      - name: resolution_hours
+        description: Hours from created to closed (NYC local time). Null when the request is not Closed.
+      - name: loaded_at_utc
+        description: Time the row was loaded into the warehouse by dbt (UTC).
+        data_tests:
+          - not_null
