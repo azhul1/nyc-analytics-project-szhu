@@ -1,0 +1,14 @@
+version: 2
+
+sources:
+  - name: group16_raw
+    description: Group 16 raw NYC collision and 311 data.
+    database: szhu-baruch
+    schema: group16_raw_data
+
+    tables:
+      - name: source_nyc_mv_collisions
+        description: Raw NYC motor vehicle collision records.
+
+      - name: source_nyc_311_streetlight_signal
+        description: Raw NYC streetlight and traffic signal requests.
