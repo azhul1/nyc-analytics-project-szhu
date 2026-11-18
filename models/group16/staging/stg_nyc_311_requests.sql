@@ -2,45 +2,86 @@
 -- One row per request created from Jan 1, 2021 to Jun 30, 2026
 
 WITH source AS (
-    SELECT *
-    FROM {{ source('group16_raw', 'source_nyc_311_streetlight_signal') }}
-),
+    SELECT * FROM {{ source('group16_raw', 'source_nyc_311_streetlight_signal') }}
+), -- Easier to refer to the dbt reference to a long name table this way
 
 cleaned AS (
     SELECT
-        unique_key,
+        -- Identifiers (INT in our model, original text kept for tracing)
+        SAFE_CAST(NULLIF(TRIM(unique_key), '') AS INT64) AS unique_key,
+        NULLIF(TRIM(unique_key), '') AS raw_unique_key,
+
+        -- Date/Time (raw times are NYC local time stored as TIMESTAMP)
         DATETIME(created_date) AS created_datetime,
+        -- Only Closed requests have a real closed date: every Pending request
+        -- has a closed_date earlier than its created_date
+        CASE WHEN UPPER(TRIM(status)) = 'CLOSED' THEN DATETIME(closed_date) END AS closed_datetime,
 
-        -- only Closed requests have a real closed date
-        -- (all Pending requests have a closed_date earlier than created_date)
-        CASE WHEN status = 'Closed' THEN DATETIME(closed_date) END AS closed_datetime,
-        status,
-        status = 'Closed' AS is_closed,
+        -- Location - standardized borough
         CASE
-            WHEN status = 'Closed' THEN TIMESTAMP_DIFF(closed_date, created_date, MINUTE) / 60.0
-        END AS resolution_hours,
+            WHEN UPPER(TRIM(borough)) IN ('MANHATTAN', 'NEW YORK') THEN 'MANHATTAN'
+            WHEN UPPER(TRIM(borough)) = 'BROOKLYN' THEN 'BROOKLYN'
+            WHEN UPPER(TRIM(borough)) = 'QUEENS' THEN 'QUEENS'
+            WHEN UPPER(TRIM(borough)) IN ('BRONX', 'THE BRONX') THEN 'BRONX'
+            WHEN UPPER(TRIM(borough)) = 'STATEN ISLAND' THEN 'STATEN ISLAND'
+            ELSE 'Unknown'
+        END AS borough,
 
-        -- complaint
+        -- Location - clean zip code (5 digits, or 5+4), anything else is Unknown
+        CASE
+            WHEN REGEXP_CONTAINS(TRIM(incident_zip), r'^\d{5}(-\d{4})?$')
+                 AND SUBSTR(TRIM(incident_zip), 1, 5) != '00000'
+                THEN SUBSTR(TRIM(incident_zip), 1, 5)
+            ELSE 'Unknown'
+        END AS zip_code,
+
+        -- Request details
+        CASE
+            WHEN UPPER(TRIM(complaint_type)) = 'STREET LIGHT CONDITION' THEN 'Street Light Condition'
+            WHEN UPPER(TRIM(complaint_type)) = 'TRAFFIC SIGNAL CONDITION' THEN 'Traffic Signal Condition'
+        END AS complaint_type,
+        COALESCE(NULLIF(TRIM(descriptor), ''), 'Not specified') AS descriptor,
+        NULLIF(TRIM(descriptor_2), '') AS descriptor_2,
+        COALESCE(INITCAP(NULLIF(TRIM(status), '')), 'Unknown') AS status,
+
+        -- Metadata
+        created_date AS raw_created_timestamp,
+        closed_date AS raw_closed_timestamp,
+        CURRENT_TIMESTAMP() AS loaded_at_utc
+    FROM source
+    -- Filters (on created date only: a request can close after June 2026)
+    WHERE DATETIME(created_date) >= DATETIME '2021-01-01 00:00:00'
+      AND DATETIME(created_date) < DATETIME '2026-07-01 00:00:00'
+      AND UPPER(TRIM(complaint_type)) IN ('STREET LIGHT CONDITION', 'TRAFFIC SIGNAL CONDITION')
+    -- Deduplicate
+    QUALIFY ROW_NUMBER() OVER (PARTITION BY source.unique_key ORDER BY source.created_date) = 1
+),
+
+final AS (
+    SELECT
+        unique_key,
+        raw_unique_key,
+        created_datetime,
+        closed_datetime,
+        DATE(created_datetime) AS created_date,
+        DATE(closed_datetime) AS closed_date,
+        -- Keys for the dimensions (open requests point to Not closed, date_key 0)
+        CAST(FORMAT_DATE('%Y%m%d', DATE(created_datetime)) AS INT64) AS created_date_key,
+        EXTRACT(HOUR FROM created_datetime) * 100 + EXTRACT(MINUTE FROM created_datetime) AS created_time_key,
+        COALESCE(CAST(FORMAT_DATE('%Y%m%d', DATE(closed_datetime)) AS INT64), 0) AS closed_date_key,
+        borough,
+        zip_code,
         complaint_type,
         descriptor,
         descriptor_2,
-        agency,
-
-        -- location
-        NULLIF(NULLIF(UPPER(TRIM(borough)), ''), 'UNSPECIFIED') AS borough,
-        CASE
-            WHEN REGEXP_CONTAINS(TRIM(incident_zip), r'^\d{5}') THEN SUBSTR(TRIM(incident_zip), 1, 5)
-            ELSE NULL
-        END AS zip_code,
-        latitude,
-        longitude,
-
-        CURRENT_TIMESTAMP() AS loaded_at_utc
-    FROM source
-    WHERE DATE(created_date) BETWEEN '2021-01-01' AND '2026-06-30'
+        status,
+        status = 'Closed' AS is_closed,
+        1 AS request_count,
+        CAST(ROUND(DATETIME_DIFF(closed_datetime, created_datetime, SECOND) / 3600.0, 2) AS NUMERIC) AS resolution_hours,
+        raw_created_timestamp,
+        raw_closed_timestamp,
+        loaded_at_utc
+    FROM cleaned
 )
 
-SELECT *
-FROM cleaned
--- remove any duplicate requests
-QUALIFY ROW_NUMBER() OVER (PARTITION BY unique_key ORDER BY unique_key) = 1
+SELECT * FROM final
