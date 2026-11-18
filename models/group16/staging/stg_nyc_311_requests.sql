@@ -1,6 +1,5 @@
--- Staging for 311 Street Light and Traffic Signal requests
--- One row per request created from Jan 1, 2021 to Jun 30, 2026
-
+-- Clean and standardize 311 Street Light and Traffic Signal requests
+-- One row per request (unique_key), created Jan 1, 2021 to Jun 30, 2026
 WITH source AS (
     SELECT * FROM {{ source('group16_raw', 'source_nyc_311_streetlight_signal') }}
 ), -- Easier to refer to the dbt reference to a long name table this way
@@ -13,9 +12,12 @@ cleaned AS (
 
         -- Date/Time (raw times are NYC local time stored as TIMESTAMP)
         DATETIME(created_date) AS created_datetime,
-        -- Only Closed requests have a real closed date: every Pending request
-        -- has a closed_date earlier than its created_date
-        CASE WHEN UPPER(TRIM(status)) = 'CLOSED' THEN DATETIME(closed_date) END AS closed_datetime,
+        -- Only use closed_date for Closed requests.
+        -- Pending requests have a closed_date before their created_date, so it is not a real closing time.
+        -- A future closed date is also a data-entry error (1 request, Dec 14, 2026)
+        CASE WHEN UPPER(TRIM(status)) = 'CLOSED'
+              AND DATE(closed_date) <= CURRENT_DATE('America/New_York')
+             THEN DATETIME(closed_date) END AS closed_datetime,
 
         -- Location - standardized borough
         CASE
