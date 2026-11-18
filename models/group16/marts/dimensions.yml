@@ -2,7 +2,7 @@ version: 2
 
 models:
   - name: dim_date
-    description: Calendar dates through the build date, plus a Not closed row.
+    description: Calendar dates from January 1, 2021 through the build date, plus a Not closed row (date_key 0).
     columns:
       - name: date_key
         data_tests:
@@ -10,7 +10,7 @@ models:
           - not_null
 
   - name: dim_time
-    description: Every minute of the day, plus an Unknown row.
+    description: Every minute of the day, plus an Unknown row (time_key -1).
     columns:
       - name: time_key
         data_tests:
@@ -18,9 +18,57 @@ models:
           - not_null
 
   - name: dim_crash_severity
-    description: Five crash severity categories with fixed integer keys.
+    description: Five crash severity categories with fixed keys 0 to 4.
     columns:
       - name: severity_key
         data_tests:
           - unique
+          - not_null
+
+  - name: dim_location
+    description: One row per borough and ZIP code combination, shared by both marts. Key 0 is Unknown borough and Unknown ZIP; other keys are numbered 1, 2, 3...
+    columns:
+      - name: location_key
+        data_tests:
+          - unique
+          - not_null
+      - name: borough
+        data_tests:
+          - not_null
+      - name: zip_code
+        data_tests:
+          - not_null
+
+  - name: dim_complaint
+    description: One row per complaint type, descriptor and descriptor 2 combination. Keys are numbered 1, 2, 3...
+    columns:
+      - name: complaint_key
+        data_tests:
+          - unique
+          - not_null
+      - name: complaint_type
+        data_tests:
+          - not_null
+          - accepted_values:
+              arguments:
+                values: ['Street Light Condition', 'Traffic Signal Condition']
+      - name: descriptor
+        data_tests:
+          - not_null
+      - name: descriptor_2
+        description: Null when the source has no descriptor 2.
+
+  - name: dim_request_status
+    description: One row per request status. Key 0 is Unknown. Only Closed has is_closed = true.
+    columns:
+      - name: status_key
+        data_tests:
+          - unique
+          - not_null
+      - name: status
+        data_tests:
+          - unique
+          - not_null
+      - name: is_closed
+        data_tests:
           - not_null

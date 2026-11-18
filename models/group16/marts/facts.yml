@@ -12,26 +12,30 @@ models:
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_date')
-              field: date_key
+              arguments:
+                to: ref('dim_date')
+                field: date_key
       - name: crash_time_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_time')
-              field: time_key
+              arguments:
+                to: ref('dim_time')
+                field: time_key
       - name: location_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_location')
-              field: location_key
+              arguments:
+                to: ref('dim_location')
+                field: location_key
       - name: severity_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_crash_severity')
-              field: severity_key
+              arguments:
+                to: ref('dim_crash_severity')
+                field: severity_key
       - name: collision_count
         data_tests:
           - not_null
@@ -73,38 +77,44 @@ models:
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_date')
-              field: date_key
+              arguments:
+                to: ref('dim_date')
+                field: date_key
       - name: created_time_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_time')
-              field: time_key
+              arguments:
+                to: ref('dim_time')
+                field: time_key
       - name: closed_date_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_date')
-              field: date_key
+              arguments:
+                to: ref('dim_date')
+                field: date_key
       - name: location_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_location')
-              field: location_key
+              arguments:
+                to: ref('dim_location')
+                field: location_key
       - name: complaint_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_complaint')
-              field: complaint_key
+              arguments:
+                to: ref('dim_complaint')
+                field: complaint_key
       - name: status_key
         data_tests:
           - not_null
           - relationships:
-              to: ref('dim_request_status')
-              field: status_key
+              arguments:
+                to: ref('dim_request_status')
+                field: status_key
       - name: request_count
         data_tests:
           - not_null
